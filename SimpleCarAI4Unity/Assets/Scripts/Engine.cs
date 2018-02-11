@@ -22,7 +22,7 @@ public class Engine : MonoBehaviour {
 
 
     [Header("Sensors")]
-    float sensorLength = 5.0f;
+    public float sensorLength = 1.0f;
     public Vector3 frontSensorPosition = new Vector3(0.0f, 0.2f, 0.3f);
 
 
