@@ -11,6 +11,9 @@ public class Engine : MonoBehaviour {
 
     public float maxSpeed;
     public float minSpeed;
+    public float maxSteerAngleAllowed = 45f;
+    public float turnSpeed = 10f;
+
 
     public Vector3 centerOfMass;
 
@@ -57,17 +60,20 @@ public class Engine : MonoBehaviour {
 
         CheckForSensors();
         ApplySteeringToWheels();
-        //Drive();
+        Drive();
         CheckForWaypoints();
 
 	}
 
     private void ApplySteeringToWheels()
     {
+        if (isAvoiding) return;
         Vector3 relativeVector = transform.InverseTransformPoint(nodes[currentNodeIndex].position);
         float angleToSteer = (relativeVector.x / relativeVector.magnitude) * MaxSteeringAngle;
-        wheelFrontLeft.steerAngle = angleToSteer;
-        wheelFrontRight.steerAngle = angleToSteer;
+
+        LerpingToAngle(angleToSteer);
+        //wheelFrontLeft.steerAngle = angleToSteer;
+        //wheelFrontRight.steerAngle = angleToSteer;
     }
 
     private void Drive()
@@ -93,41 +99,82 @@ public class Engine : MonoBehaviour {
         Vector3 sensorStartPosition = transform.position;
         sensorStartPosition += transform.forward * frontSensorPosition.z;
         sensorStartPosition += transform.forward * frontSensorPosition.y;
+
+        isAvoiding = false;
+
         {
-
-
             sensorStartPosition += transform.right * 0.3f;
             if (Physics.Raycast(sensorStartPosition, transform.forward, out hit, sensorLength))
             {
-                
-                Debug.DrawLine(sensorStartPosition, hit.point);
+                if(hit.collider.tag == "Obstacles")
+                {
+                    isAvoiding = true;
+                    avoidingSteeringMultiplier -= 1.0f;
+                    Debug.DrawLine(sensorStartPosition, hit.point);
+                }
             }
             if (Physics.Raycast(sensorStartPosition, Quaternion.AngleAxis(30.0f, transform.up) * transform.forward, out hit, sensorLength))
             {
-                Debug.DrawLine(sensorStartPosition, hit.point);
+                if (hit.collider.tag == "Obstacles")
+                {
+                    isAvoiding = true;
+                    avoidingSteeringMultiplier -= 0.5f;
+                    Debug.DrawLine(sensorStartPosition, hit.point);
+                }
+
             }
 
             sensorStartPosition -= transform.right * 0.6f;
             if (Physics.Raycast(sensorStartPosition, transform.forward, out hit, sensorLength))
             {
-                Debug.DrawLine(sensorStartPosition, hit.point);
+                if (hit.collider.tag == "Obstacles")
+                {
+                    isAvoiding = true;
+                    avoidingSteeringMultiplier += 1.0f;
+                    Debug.DrawLine(sensorStartPosition, hit.point);
+                }
             }
             if (Physics.Raycast(sensorStartPosition, Quaternion.AngleAxis(-30.0f, transform.up) * transform.forward, out hit, sensorLength))
             {
-                Debug.DrawLine(sensorStartPosition, hit.point);
+                if (hit.collider.tag == "Obstacles")
+                {
+                    isAvoiding = true;
+                    avoidingSteeringMultiplier += 0.5f;
+                    Debug.DrawLine(sensorStartPosition, hit.point);
+                }
             }
 
-
+            if(avoidingSteeringMultiplier == 0)
             if (Physics.Raycast(sensorStartPosition, transform.forward, out hit, sensorLength))
             {
-                Debug.DrawLine(sensorStartPosition, hit.point);
+
+                    if (hit.collider.tag == "Obstacles")
+                    {
+                        isAvoiding = true;
+                        Debug.DrawLine(sensorStartPosition, hit.point);
+                        if (hit.normal.x < 0)
+                            avoidingSteeringMultiplier = -1;
+                        else
+                            avoidingSteeringMultiplier = 1;
+                    }
+                }
+
+            if(isAvoiding)
+            {
+
+                LerpingToAngle(MaxSteeringAngle * avoidingSteeringMultiplier);
+                //wheelFrontLeft.steerAngle = MaxSteeringAngle * avoidingSteeringMultiplier; 
+                //wheelFrontRight.steerAngle = MaxSteeringAngle * avoidingSteeringMultiplier;
             }
-
-
 
         }
     }
 
+    private void LerpingToAngle(float targetAngle)
+    {
+        wheelFrontLeft.steerAngle = Mathf.Lerp(wheelFrontLeft.steerAngle, targetAngle, Time.deltaTime * turnSpeed);
+        wheelFrontRight.steerAngle = Mathf.Lerp(wheelFrontRight.steerAngle, targetAngle, Time.deltaTime * turnSpeed);
+    }
 
 }
 
